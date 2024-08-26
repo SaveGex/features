@@ -1,9 +1,11 @@
 class Sentence:
-    def __init__(self, processed_sentence: str, sentence: str, fields: int, answers: int) -> None:
+    def __init__(self, processed_sentence: str, sentence: str, user_sentence: str, fields: int, answers: int) -> None:
         #for show in html
         self.processed_sentence = processed_sentence
         # for comparing output and sentence
         self.sentence = sentence
+        # I think need to save and user sentence as what he wrote
+        self.user_sentence = user_sentence
         # i forgot
         self.fields = fields
         # how many answers can will be in sentence
@@ -26,11 +28,7 @@ class Correct_Answer:
 
 
 input_index_counter = 0
-def fields_count() -> str:
-    global input_index_counter
-    input_index_counter += 1
-    field = f"<input type='text' class='' name='wrong_word{input_index_counter}' placeholder=\"{'something...'}\" size=\"{len('something...')}\">"
-    return field
+
 symbol_word_start = '('
 symbol_word_end = ')'
 symbol_field = '....'
@@ -38,47 +36,21 @@ symbol_field = '....'
 back_slash = '\\'
 forward_slash = '/'
 count_of_dots_in_Sfield = len(symbol_field)-1
+
 global_list_sentences = []
 
-def to_processed_of_text(text: str, index = 0) -> list:
 
-    word_list = text.split()
-    index = 0
+def change_name_for_field() -> str:
+    global input_index_counter
+    input_index_counter += 1
+    field = f"<input type='text' class='' name='wrong_word{input_index_counter}' placeholder=\"{'something...'}\" size=\"{len('something...')}\">"
+    return field
 
-    indexs_words_list = []
 
-    #cycle for change dots on fields
-    plus_words = 1
-    while index < len(word_list):
-        word = word_list[index]
-        if word.find(symbol_field) != -1:
-
-            field = fields_count()
-
-            change_index = index
-            if len(word) != len(symbol_field):
-                change_index += plus_words
-                plus_words += 1
-
-            start_text = word.find(symbol_field)
-            end_index = start_text + len(symbol_field) - 1 
-            word_split = [sym for sym in word]
-            for _ in range(count_of_dots_in_Sfield):
-                word_split.pop(start_text)
-            
-            word_split[start_text] = field
-            word = ''.join(word_split)
-
-            # need prepear sentence for correct indexes
-            word_list[index] = word
-
-            
-            indexs_words_list.append(change_index)
-            
-            # Wrong_Answer(index, field)
-        index += 1
+def processed_sentence_and_save(copy_text: str) -> str:
     # for count indexes in
     index_indexs_words_list = 0
+    count_fields = copy_text.count(symbol_field)
     index = 0 
     #cycle for remember index fields in original text and delete correct answers from processed text
     find_start = False
@@ -87,14 +59,14 @@ def to_processed_of_text(text: str, index = 0) -> list:
     start_text = 0
     start_index = 0
     saved_answers = 0
-    for num_sym, sym in enumerate(text):
+    for num_sym, sym in enumerate(copy_text):
         if sym == symbol_word_start and find_start == False and can_or_not == True:
             start_index = start_text = num_sym + 1
             find_start = True
         elif ((sym == back_slash or sym == forward_slash) or sym == symbol_word_start) and find_start == True and can_or_not == True:
             # me in future don't forget about .strip() done with correct answer
             # need will make to save indexes of fields of correct sentence in Correct_Answer
-            speciment = Correct_Answer(index = index_indexs_words_list, phrase = text[start_index:num_sym].strip(), text = text)
+            speciment = Correct_Answer(index = None, phrase = copy_text[start_index:num_sym].strip(), text = copy_text)
             global_list_sentences.append(speciment)
             
             # - 1 because i done + 1 to skip first symbol 
@@ -103,22 +75,92 @@ def to_processed_of_text(text: str, index = 0) -> list:
             start_index = num_sym + 1
             index_indexs_words_list += 1
             
-            can_or_not = False if saved_answers == index_indexs_words_list else True
+            can_or_not = False if saved_answers == count_fields else True
             # can_or_not = False if saved_answers == len(indexs_words_list) else True
         elif sym == symbol_word_end and find_start == True:
             find_start = False
-            text = text[:start_text-1] + text[num_sym + 1:]
+            copy_text = copy_text[:start_text-1] + copy_text[num_sym + 1:]
             pass
         elif sym == symbol_word_end and find_start == False:
-            text = text[:start_text-1] + text[start_text:]
+            copy_text = copy_text[:start_text-1] + copy_text[start_text:]
             pass
+    return copy_text
 
+
+def processed_sentence_without_save(copy_text: str) -> str:
+    #cycle for remember index fields in original text and delete correct answers from processed text
+    find_start = False
+    # true mean can, false mean can't
+    can_or_not = True
+    start_text = 0
+    for num_sym, sym in enumerate(copy_text):
+        if sym == symbol_word_start and find_start == False and can_or_not == True:
+            start_index = start_text = num_sym + 1
+            find_start = True
+        elif sym == symbol_word_end and find_start == True:
+            find_start = False
+            copy_text = copy_text[:start_text-1] + copy_text[num_sym + 1:]
+            pass
+        elif sym == symbol_word_end and find_start == False:
+            copy_text = copy_text[:start_text-1] + copy_text[start_text:]
+            pass
+    return copy_text
+
+
+def to_processed_of_text(text: str, index = 0) -> list:
+
+    
+    
+    text_split_copy = processed_sentence_and_save(text).split()
+    correct_sentence = processed_sentence_without_save(text).split()
+    index = 0
+
+    indexs_words_list = []
+
+    # make proceed sentence for showing in html
+    plus_words = 0
+    while index < len(text_split_copy):
+        word = text_split_copy[index]
+        if word.find(symbol_field) != -1:
+            
+            word = word.replace(symbol_field, f" {symbol_field} ").strip()
+            text_split_copy[index] = word
+            text_split_copy = " ".join(text_split_copy).split()
+            addition_index = index + 1 if word != symbol_field else index
+            index = index + 1
+
+            # field = change_name_for_field()
+
+            # # need prepear sentence for correct indexes
+            # text_split_copy[addition_index] = field
+
+            indexs_words_list.append(addition_index)
             
             
+            # Wrong_Answer(index, field)
+        index += 1
+    #processed sentence fields
+    for index in indexs_words_list:
+        field = change_name_for_field()
+        text_split_copy[index] = field
+
+
+    '''make correct sentence for comparing with user sentence'''
+    index_indexs_words_list = 0
+    for object in global_list_sentences:
+        # there is a stub in the processed_sentence function
+        object.index = indexs_words_list[index_indexs_words_list]
+        index_indexs_words_list += 1
+    
+    for object in global_list_sentences:
+        text_split_copy[object.index] = object.phrase
+    global_list_sentences.append(text_split_copy)
+
+
 
     return global_list_sentences
 
 print(to_processed_of_text("\
-it's word which.... (my name/bonk \\inner\\/phrase/())...."))
+it'....s word which.... (my name/bonk \\inner\\/phrase/())...."))
 for i in global_list_sentences:
     print(i)
