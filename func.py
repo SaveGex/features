@@ -1,5 +1,5 @@
 class Sentence:
-    def __init__(self, processed_sentence: str, sentence: str, user_sentence: str, fields: int, answers: int) -> None:
+    def __init__(self, processed_sentence: str, sentence: list, user_sentence: str, fields: int, answers: int) -> None:
         #for show in html
         self.processed_sentence = processed_sentence
         # for comparing output and sentence
@@ -59,11 +59,12 @@ def processed_sentence_and_save(copy_text: str) -> str:
     start_text = 0
     start_index = 0
     saved_answers = 0
+    concat_list = []
     for num_sym, sym in enumerate(copy_text):
         if sym == symbol_word_start and find_start == False and can_or_not == True:
             start_index = start_text = num_sym + 1
             find_start = True
-        elif ((sym == back_slash or sym == forward_slash) or sym == symbol_word_start) and find_start == True and can_or_not == True:
+        elif ((sym == back_slash or sym == forward_slash) or sym == symbol_word_start) and find_start == True and can_or_not == True and start_index != num_sym:
             # me in future don't forget about .strip() done with correct answer
             # need will make to save indexes of fields of correct sentence in Correct_Answer
             speciment = Correct_Answer(index = None, phrase = copy_text[start_index:num_sym].strip(), text = copy_text)
@@ -77,13 +78,28 @@ def processed_sentence_and_save(copy_text: str) -> str:
             
             can_or_not = False if saved_answers == count_fields else True
             # can_or_not = False if saved_answers == len(indexs_words_list) else True
+            '''if sudden wrote empty answer'''
+        elif start_index == num_sym and ((sym == back_slash or sym == forward_slash) or sym == symbol_word_start) and find_start == True and can_or_not == True:
+            start_index += 1
         elif sym == symbol_word_end and find_start == True:
+            if start_index != num_sym:
+                speciment = Correct_Answer(index = None, phrase = copy_text[start_index:num_sym].strip(), text = copy_text)
+                global_list_sentences.append(speciment)
+            else:
+                start_index += 1
             find_start = False
-            copy_text = copy_text[:start_text-1] + copy_text[num_sym + 1:]
+            concat_list.append({"to": start_text-1,
+                                "from": num_sym + 1
+                                })
             pass
         elif sym == symbol_word_end and find_start == False:
-            copy_text = copy_text[:start_text-1] + copy_text[start_text:]
+            concat_list.append({"to": start_text-1,
+                                "from": start_text
+                                })
             pass
+        
+    for dict_obj in reversed(concat_list):
+        copy_text = copy_text[:dict_obj["to"]] + copy_text[dict_obj["from"]:]
     return copy_text
 
 
@@ -93,17 +109,24 @@ def processed_sentence_without_save(copy_text: str) -> str:
     # true mean can, false mean can't
     can_or_not = True
     start_text = 0
+    concat_list = []
     for num_sym, sym in enumerate(copy_text):
         if sym == symbol_word_start and find_start == False and can_or_not == True:
             start_index = start_text = num_sym + 1
             find_start = True
         elif sym == symbol_word_end and find_start == True:
             find_start = False
-            copy_text = copy_text[:start_text-1] + copy_text[num_sym + 1:]
+            concat_list.append({"to": start_text-1,
+                                "from": num_sym + 1
+                                })
             pass
         elif sym == symbol_word_end and find_start == False:
-            copy_text = copy_text[:start_text-1] + copy_text[start_text:]
+            concat_list.append({"to": start_text-1,
+                                "from": start_text
+                                })
             pass
+    for dict_obj in reversed(concat_list):
+        copy_text = copy_text[:dict_obj["to"]] + copy_text[dict_obj["from"]:]
     return copy_text
 
 
@@ -111,21 +134,21 @@ def to_processed_of_text(text: str, index = 0) -> list:
 
     
     
-    text_split_copy = processed_sentence_and_save(text).split()
-    correct_sentence = processed_sentence_without_save(text).split()
+    text_HTML = processed_sentence_and_save(text).split()
+    correct_sentence = []
     index = 0
 
     indexs_words_list = []
 
     # make proceed sentence for showing in html
     plus_words = 0
-    while index < len(text_split_copy):
-        word = text_split_copy[index]
+    while index < len(text_HTML):
+        word = text_HTML[index]
         if word.find(symbol_field) != -1:
             
             word = word.replace(symbol_field, f" {symbol_field} ").strip()
-            text_split_copy[index] = word
-            text_split_copy = " ".join(text_split_copy).split()
+            text_HTML[index] = word
+            text_HTML = " ".join(text_HTML).split()
             addition_index = index + 1 if word != symbol_field else index
             index = index + 1
 
@@ -139,10 +162,12 @@ def to_processed_of_text(text: str, index = 0) -> list:
             
             # Wrong_Answer(index, field)
         index += 1
+    # sentence with values filds instead correct words
+    correct_sentence = text_HTML.copy()
     #processed sentence fields
     for index in indexs_words_list:
         field = change_name_for_field()
-        text_split_copy[index] = field
+        text_HTML[index] = field
 
 
     '''make correct sentence for comparing with user sentence'''
@@ -153,14 +178,14 @@ def to_processed_of_text(text: str, index = 0) -> list:
         index_indexs_words_list += 1
     
     for object in global_list_sentences:
-        text_split_copy[object.index] = object.phrase
-    global_list_sentences.append(text_split_copy)
+        correct_sentence[object.index] = object.phrase
+    global_list_sentences.append(correct_sentence)
 
+    speciment = Sentence(processed_sentence = text_HTML, sentence = correct_sentence, user_sentence = None, fields = text.count(symbol_field), answers = len(global_list_sentences))
 
-
-    return global_list_sentences
+    return speciment
 
 print(to_processed_of_text("\
-it'....s word which.... (my name/bonk \\inner\\/phrase/())...."))
+it'....s(my name) word which....(/bonk) (\\inner)...."))
 for i in global_list_sentences:
     print(i)
